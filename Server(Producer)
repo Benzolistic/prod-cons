@@ -1,0 +1,55 @@
+import socket
+import threading
+
+BUFFER_SIZE = 10
+PORT = 12345
+
+buffer = []
+lock = threading.Lock()
+
+def producer():
+    global buffer
+    while True:
+        data = produce_data()  # Generate data item
+        with lock:
+            while len(buffer) >= BUFFER_SIZE:
+                lock.wait()  # Wait if buffer is full
+            buffer.append(data)
+            print(f"Produced: {data}")
+            lock.notify_all()  # Notify consumer(s)
+
+def produce_data():
+    # Implement your logic to generate data items here
+    pass
+
+def handle_client(client_socket):
+    global buffer
+    while True:
+        with lock:
+            while len(buffer) == 0:
+                lock.wait()  # Wait if buffer is empty
+            data = buffer.pop(0)
+            print(f"Consumed: {data}")
+            lock.notify_all()  # Notify producer
+        process_data(data)  # Process the consumed data item
+
+def process_data(data):
+    # Implement your logic to process the consumed data item here
+    pass
+
+def start_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('localhost', PORT))
+    server_socket.listen(5)
+    print("Server started. Waiting for clients...")
+
+    producer_thread = threading.Thread(target=producer)
+    producer_thread.start()
+
+    while True:
+        client_socket, address = server_socket.accept()
+        print(f"Client connected: {address}")
+        client_thread = threading.Thread(target=handle_client, args=(client_socket,))
+        client_thread.start()
+
+start_server()
